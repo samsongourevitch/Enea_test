@@ -7,17 +7,34 @@ from math import sqrt
 from sklearn.decomposition import PCA
 import scipy.optimize as opt
 
-points = pd.read_parquet('/Users/samsongourevitch/Documents/lidar_cable_points_extrahard.parquet', engine='pyarrow')
+FILE_PATH = '/Users/samsongourevitch/Documents/lidar_cable_points_extrahard.parquet'
 
-points = points.reset_index(drop=True)
+#First we load the data in a panda dataframe
+points = pd.read_parquet(FILE_PATH, engine='pyarrow').reset_index(drop=True)
 
+#We then define functions to project a 3D point onto a plane. This function will be useful later.
+def dot_product(x, y):
+    return sum([x[i]*y[i] for i in range(len(x))])
+
+def norm(x):
+    return sqrt(dot_product(x, x))
+
+def normalize(x):
+    return [x[i] / norm(x) for i in range(len(x))]
+
+def project_onto_plane(x, n):
+    d = dot_product(x, n) / norm(n)
+    p = [d * normalize(n)[i] for i in range(len(n))]
+    return [x[i] - p[i] for i in range(len(x))]
+
+#We define a function to cluster the points per wire or groups of wire
 def cluster_pca(points, c) :
 
     #apply pca method in order to determine the plane (and in fact the line) where it is easy to cluster the different wires
     pca = PCA(n_components=3)
     pca.fit(points)
 
-    #computes the normal to this plane ie the plane that is ortohogonal to the eigen vector which explains the variance. Geometrically, this is the plane that crosses all the wires perpendicular to the vertical plane the belong to.
+    #computes the normal to this plane ie the plane that is ortohogonal to the eigen vector which explains the variance.
     normal = np.cross(pca.components_[1], pca.components_[2])
 
     #convert dataframe to numpy array to facilitate the manipulations
@@ -29,7 +46,7 @@ def cluster_pca(points, c) :
         proj.append(project_onto_plane(points_array[i], normal))
     proj = np.array(proj)
 
-    #get one component (depending on c) of the projection which is enough to separate the wires
+    #get one component (depending on c) of the projection which is enough to separate the wires. c is 2 when we want to separate vertically and 0 when we want to separate horizontally. 
     compo = list()
     for ele in proj :
         compo.append(ele[c])
@@ -58,21 +75,6 @@ def cluster_pca(points, c) :
     for i in range(len(clusters)) :
         l_clusters.append(points[points['cluster'] == i].drop(columns=['cluster']))
     return l_clusters
-
-def dot_product(x, y):
-    return sum([x[i]*y[i] for i in range(len(x))])
-
-def norm(x):
-    return sqrt(dot_product(x, x))
-
-def normalize(x):
-    return [x[i] / norm(x) for i in range(len(x))]
-
-def project_onto_plane(x, n):
-    d = dot_product(x, n) / norm(n)
-    p = [d * normalize(n)[i] for i in range(len(n))]
-    return [x[i] - p[i] for i in range(len(x))]
-
 
 def fit_plane(points):
     centroid = np.mean(points, axis=0)
