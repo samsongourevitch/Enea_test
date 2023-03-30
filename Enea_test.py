@@ -5,6 +5,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import pyarrow
 from math import sqrt
 from sklearn.decomposition import PCA
+import scipy.optimize as opt
 
 points = pd.read_parquet('/Users/samsongourevitch/Documents/lidar_cable_points_extrahard.parquet', engine='pyarrow')
 
@@ -118,12 +119,13 @@ def fit_and_plot_catenary(points, normal, couleur):
     ax.scatter(points[:, 0], points[:, 1], points[:, 2], c=couleurs[couleur], s=5)
     ax.plot(Z[:, 0], Z[:, 1], Z[:, 2], c='r', linewidth=2)
 
-    return np.array([y0, c, x0])
+    return np.array([y0, c, x0]), [Z[:, 0], Z[:, 1], Z[:, 2]]
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 
 params = list()
+curves = []
 couleurs = ['b', 'g', 'y', 'm', 'k']
 
 def main() :
@@ -142,7 +144,9 @@ def main() :
             normal_i, d = normal_i[0], d[0]
 
             #find fitting parameters for the catenary curve and plot the resulting curve
-            params.append(fit_and_plot_catenary(points_wire_i, normal_i, couleur))
+            param, curve = fit_and_plot_catenary(points_wire_i, normal_i, couleur)
+            params.append(param)
+            curves.append(curve)
             couleur+=1
 
     ax.set_xlabel('x')
