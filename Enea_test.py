@@ -7,12 +7,13 @@ from math import sqrt
 from sklearn.decomposition import PCA
 import scipy.optimize as opt
 
-FILE_PATH = '/Users/samsongourevitch/Documents/lidar_cable_points_extrahard.parquet'
+# Replace Your_file_path by the path of the file in your computer and difficulty by 'easy', 'medium', 'hard' or 'extrahard'
+FILE_PATH = 'Your_file_path/lidar_cable_points_difficulty.parquet'
 
-#First we load the data in a panda dataframe
+# First we load the data in a panda dataframe
 points = pd.read_parquet(FILE_PATH, engine='pyarrow').reset_index(drop=True)
 
-#We then define functions to project a 3D point onto a plane. This function will be useful later.
+# We define functions to project a 3D point onto a plane. This function will be useful later.
 def dot_product(x, y):
     return sum([x[i]*y[i] for i in range(len(x))])
 
@@ -27,7 +28,7 @@ def project_onto_plane(x, n):
     p = [d * normalize(n)[i] for i in range(len(n))]
     return [x[i] - p[i] for i in range(len(x))]
 
-#We define a function to cluster the points per wire or groups of wire
+# We define a function to cluster the points per wire or groups of wire
 def cluster_pca(points, c) :
 
     #apply pca method in order to determine the plane (and in fact the line) where it is easy to cluster the different wires
@@ -76,6 +77,7 @@ def cluster_pca(points, c) :
         l_clusters.append(points[points['cluster'] == i].drop(columns=['cluster']))
     return l_clusters
 
+# Define a function that returns the best fitting plane (normal and intercept) of a given set of points
 def fit_plane(points):
     centroid = np.mean(points, axis=0)
     translated_points = points - centroid
@@ -88,7 +90,8 @@ def fit_plane(points):
 def catenary(x, y0, c, x0):
      return y0 + c * (np.cosh((x - x0) / c) - 1)
 
-def fit_and_plot_catenary(points, normal, couleur):
+
+def fit_catenary(points, normal):
     # Define a new coordinate system
     centroid = points.mean(axis=0)
     x_axis = np.cross(normal, [0, 0, 1])
@@ -118,25 +121,29 @@ def fit_and_plot_catenary(points, normal, couleur):
     x0 = x0_ + x0 * np.cos(a) + y0 * np.sin(a)
     y0 = y0_ - x0 * np.sin(a) + y0 * np.cos(a)
 
-    ax.scatter(points[:, 0], points[:, 1], points[:, 2], c=couleurs[couleur], s=5)
-    ax.plot(Z[:, 0], Z[:, 1], Z[:, 2], c='r', linewidth=2)
-
     return np.array([y0, c, x0]), [Z[:, 0], Z[:, 1], Z[:, 2]]
 
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
 
-params = list()
-curves = []
-couleurs = ['b', 'g', 'y', 'm', 'k']
 
 def main() :
 
+    # Lists of parameters to the catenary and curves themselves
+    params = list()
+    curves = []
+    
+    # List of colors to plot the wires
+    colors = ['b', 'g', 'y', 'm', 'k']
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    
+    # We cluster the wires vertically 
     v_clusters = cluster_pca(points, 2)
     for cluster in v_clusters :
         cluster = cluster.reset_index(drop=True)
+        # We cluster the wires horizontally 
         h_clusters = cluster_pca(cluster, 0)
-        couleur = 0
+        color = 0
         for wire in h_clusters :
             wire = wire.reset_index(drop=True)
             points_wire_i = wire.to_numpy()
@@ -146,10 +153,14 @@ def main() :
             normal_i, d = normal_i[0], d[0]
 
             #find fitting parameters for the catenary curve and plot the resulting curve
-            param, curve = fit_and_plot_catenary(points_wire_i, normal_i, couleur)
+            param, curve = fit_catenary(points_wire_i, normal_i)
             params.append(param)
             curves.append(curve)
-            couleur+=1
+            
+            #plot the curve and the points
+            ax.scatter(points_wire_i[:, 0], points_wire_i[:, 1], points_wire_i[:, 2], c=colors[color], s=5)
+            ax.plot(curve[0], curve[1], curve[2], c='r', linewidth=2)
+            color+=1
 
     ax.set_xlabel('x')
     ax.set_ylabel('y')
