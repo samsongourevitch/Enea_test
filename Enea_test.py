@@ -162,10 +162,10 @@ def main() :
             ax.plot(curve[0], curve[1], curve[2], c='r', linewidth=2)
             color+=1
 
-    ax.set_xlabel('x')
-    ax.set_ylabel('y')
-    ax.set_zlabel('z')
-    plt.title('Catenary fit for wires')
-    plt.legend(['best fitting catenary curve'], loc='upper right')
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        ax.set_zlabel('z')
+        plt.title('Catenary fit for wires')
+        plt.legend(['best fitting catenary curve'], loc='upper right')
 
-    plt.show()
+        plt.show()
